@@ -8,7 +8,7 @@ from snake_game import UP, DOWN, LEFT, RIGHT
 from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 
 # Training configuration
-MAX_STEPS     = 200   # max steps a snake can take without eating before being killed
+MAX_STEPS     = 100   # max steps a snake can take without eating before being killed
 GENERATIONS   = 50    # how many generations to train for
 FPS_TRAINING  = 60    # speed when dev view is on (higher = faster)
 
@@ -120,8 +120,12 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view):
             # Kill snakes that are looping without eating
             if snake.steps_since_food > MAX_STEPS:
                 snake.alive = False
-                ge[i].fitness -= 10
+                ge[i].fitness -= 50
                 continue
+
+            # Gradually punish the longer they go without eating
+            if snake.steps_since_food > 100:
+                ge[i].fitness -= 0.5
 
             # Get neural network inputs and activate
             inputs  = snake.get_inputs(foods[i])

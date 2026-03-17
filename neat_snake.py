@@ -9,9 +9,9 @@ from snake_game import UP, DOWN, LEFT, RIGHT
 from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 
 # Training configuration
-MAX_STEPS     = 150   # max steps a snake can take without eating before being killed
+MAX_STEPS     = 100   # max steps a snake can take without eating before being killed
 GENERATIONS   = 500    # how many generations to train for
-FPS_TRAINING  = 60    # speed when dev view is on (higher = faster)
+FPS_TRAINING  = 100    # speed when dev view is on (higher = faster)
 
 # Dev view colors
 SENSOR_WALL  = (255, 100, 100)   # red rays = wall distance
@@ -129,33 +129,46 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
                 ge[i].fitness -= 0.5
 
             # Get neural network inputs and activate
-            inputs  = snake.get_inputs(foods[i])
-            output  = nets[i].activate(inputs)
-            move    = [UP, DOWN, LEFT, RIGHT][output.index(max(output))]
+            inputs = snake.get_inputs(foods[i])
+            output = nets[i].activate(inputs)
+            move   = [UP, DOWN, LEFT, RIGHT][output.index(max(output))]
             snake.set_direction(move)
             snake.move()
 
-            # Only reward/punish food distance if snake can see the food
+            # Punish dying on a wall or self
+            if not snake.alive:
+                ge[i].fitness -= 150
+                continue
+
+            # Punish being close to walls every step
             head = snake.head
+            wall_clearance = min(head[0], GRID_W - 1 - head[0],
+                                 head[1], GRID_H - 1 - head[1])
+            if wall_clearance <= 1:
+                ge[i].fitness -= 2.0
+            elif wall_clearance <= 3:
+                ge[i].fitness -= 0.5
+
+            # Only reward/punish food distance if snake can see the food
             food = foods[i]
-            inputs = snake.get_inputs(food)
             can_see_food = any(inputs[j] for j in range(1, 24, 3))
 
             if can_see_food:
                 dist = abs(head[0] - food[0]) + abs(head[1] - food[1])
-                if not hasattr(snake, 'last_dist'):
+                if not hasattr(snake, 'last_dist') or snake.last_dist is None:
                     snake.last_dist = dist
                 if dist < snake.last_dist:
-                    ge[i].fitness += 1.0
+                    ge[i].fitness += 2.0
                 else:
-                    ge[i].fitness -= 0.5
+                    ge[i].fitness -= 1.0
                 snake.last_dist = dist
 
             # Reward eating food
             if snake.head == foods[i]:
                 snake.grow()
                 foods[i] = spawn_food(snake.body)
-                ge[i].fitness += 20
+                ge[i].fitness += 100
+                snake.last_dist = None
 
             if snake.score > generation_best:
                 generation_best = snake.score
@@ -187,7 +200,6 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
                          len(alive),
                          all_time_best[0])
         else:
-            # Draw all snakes faintly when dev view is off
             for snake in alive:
                 snake.draw(screen)
             draw_food(screen, foods[0])

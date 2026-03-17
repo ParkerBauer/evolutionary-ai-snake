@@ -43,6 +43,35 @@ class Snake:
         if new_dir != opposite:
             self.direction = new_dir
 
+    def look_in_direction(self, direction, food_pos):
+        dist     = 0
+        pos      = list(self.head)
+        see_food = 0
+        see_body = 0
+
+        while True:
+            pos[0] += direction[0]
+            pos[1] += direction[1]
+            dist   += 1
+
+            if not (0 <= pos[0] < GRID_W and 0 <= pos[1] < GRID_H):
+                break
+            if tuple(pos) == food_pos and see_food == 0:
+                see_food = 1
+            if tuple(pos) in self.body and see_body == 0:
+                see_body = 1
+
+        wall_dist = 1.0 / dist
+        return [wall_dist, see_food, see_body]
+
+    def get_inputs(self, food_pos):
+        directions = [UP, DOWN, LEFT, RIGHT,
+                      (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        inputs = []
+        for d in directions:
+            inputs.extend(self.look_in_direction(d, food_pos))
+        return inputs
+
     def move(self):
         if not self.alive:
             return False

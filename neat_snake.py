@@ -1,5 +1,5 @@
-import pygame
-import neat
+import pygame  # type: ignore
+import neat # type: ignore
 import os
 import sys
 import pickle
@@ -10,7 +10,7 @@ from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 
 # Training configuration
 MAX_STEPS     = 150   # max steps a snake can take without eating before being killed
-GENERATIONS   = 500    # how many generations to train for
+GENERATIONS   = 50000    # how many generations to train for
 FPS_TRAINING  = [120]    # speed when dev view is on (higher = faster)
 
 # Dev view colors
@@ -169,7 +169,7 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best, 
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         genome.fitness = 0
-        snakes.append(Snake())
+        snakes.append(Snake(randomize=True))
         nets.append(net)
         ge.append(genome)
         foods.append(spawn_food([]))
@@ -298,7 +298,7 @@ def main():
 
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
-    population.add_reporter(neat.Checkpointer(5, filename_prefix=f"{checkpoint_dir}/neat-checkpoint-"))
+    population.add_reporter(neat.Checkpointer(50, filename_prefix=f"{checkpoint_dir}/neat-checkpoint-"))
 
     # Track generation number for sidebar
     def run_generation(genomes, config):

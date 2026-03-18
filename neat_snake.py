@@ -9,9 +9,9 @@ from snake_game import UP, DOWN, LEFT, RIGHT
 from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 
 # Training configuration
-MAX_STEPS     = 100   # max steps a snake can take without eating before being killed
+MAX_STEPS     = 150   # max steps a snake can take without eating before being killed
 GENERATIONS   = 500    # how many generations to train for
-FPS_TRAINING  = 100    # speed when dev view is on (higher = faster)
+FPS_TRAINING  = 120    # speed when dev view is on (higher = faster)
 
 # Dev view colors
 SENSOR_WALL  = (255, 100, 100)   # red rays = wall distance
@@ -89,7 +89,6 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
     ge        = []
     foods     = []
 
-    # Create a snake, network, and food for each genome
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         genome.fitness = 0
@@ -103,7 +102,6 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
     while True:
         clock.tick(FPS_TRAINING)
 
-        # Handle pygame events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
@@ -113,74 +111,42 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
                 if event.key == pygame.K_d:
                     dev_view[0] = not dev_view[0]
 
-        # Update all snakes
         for i, snake in enumerate(snakes):
             if not snake.alive:
                 continue
 
-            # Kill snakes that are looping without eating
+            # Kill loopers, no reward or penalty
             if snake.steps_since_food > MAX_STEPS:
                 snake.alive = False
-                ge[i].fitness -= 50
                 continue
 
-            # Gradually punish the longer they go without eating
-            if snake.steps_since_food > 100:
-                ge[i].fitness -= 0.5
-
-            # Get neural network inputs and activate
+            # Get inputs and move
             inputs = snake.get_inputs(foods[i])
             output = nets[i].activate(inputs)
             move   = [UP, DOWN, LEFT, RIGHT][output.index(max(output))]
             snake.set_direction(move)
             snake.move()
 
-            # Punish dying on a wall or self
+            # Punish death
             if not snake.alive:
-                ge[i].fitness -= 150
+                ge[i].fitness -= 100
                 continue
 
-            # Punish being close to walls every step
-            head = snake.head
-            wall_clearance = min(head[0], GRID_W - 1 - head[0],
-                                 head[1], GRID_H - 1 - head[1])
-            if wall_clearance <= 1:
-                ge[i].fitness -= 2.0
-            elif wall_clearance <= 3:
-                ge[i].fitness -= 0.5
-
-            # Only reward/punish food distance if snake can see the food
-            food = foods[i]
-            can_see_food = any(inputs[j] for j in range(1, 24, 3))
-
-            if can_see_food:
-                dist = abs(head[0] - food[0]) + abs(head[1] - food[1])
-                if not hasattr(snake, 'last_dist') or snake.last_dist is None:
-                    snake.last_dist = dist
-                if dist < snake.last_dist:
-                    ge[i].fitness += 2.0
-                else:
-                    ge[i].fitness -= 1.0
-                snake.last_dist = dist
-
-            # Reward eating food
+            # Big reward for eating
             if snake.head == foods[i]:
                 snake.grow()
                 foods[i] = spawn_food(snake.body)
-                ge[i].fitness += 100
-                snake.last_dist = None
+                ge[i].fitness += 200
 
             if snake.score > generation_best:
                 generation_best = snake.score
             if snake.score > all_time_best[0]:
                 all_time_best[0] = snake.score
 
-        # Check if all snakes are dead
         alive = [s for s in snakes if s.alive]
         if not alive:
             break
 
-        # Drawing
         screen.fill(GRAY)
         for gx in range(0, WINDOW_W, GRID_SIZE):
             pygame.draw.line(screen, LIGHT_GRAY, (gx, 0), (gx, WINDOW_H))
@@ -188,7 +154,6 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
             pygame.draw.line(screen, LIGHT_GRAY, (0, gy), (WINDOW_W, gy))
 
         if dev_view[0]:
-            # Find the best alive snake to highlight
             best = max(alive, key=lambda s: ge[snakes.index(s)].fitness)
             draw_sensors(screen, best, foods[snakes.index(best)])
             best.draw(screen)
@@ -229,9 +194,22 @@ def main():
     )
 
     # Create population
-    population = neat.Population(config)
+    # Create or restore population
+    checkpoint_dir = "checkpoints"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    checkpoints = [f for f in os.listdir(checkpoint_dir) if f.startswith("neat-checkpoint-")]
+    if checkpoints:
+        latest = max(checkpoints, key=lambda f: int(f.split("-")[-1]))
+        print(f"Restoring from checkpoint: {latest}")
+        population = neat.Checkpointer.restore_checkpoint(os.path.join(checkpoint_dir, latest))
+    else:
+        print("No checkpoint found, starting fresh...")
+        population = neat.Population(config)
+
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
+    population.add_reporter(neat.Checkpointer(5, filename_prefix=f"{checkpoint_dir}/neat-checkpoint-"))
 
     # Track generation number for sidebar
     def run_generation(genomes, config):

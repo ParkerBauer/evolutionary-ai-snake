@@ -70,6 +70,13 @@ class Snake:
         inputs = []
         for d in directions:
             inputs.extend(self.look_in_direction(d, food_pos))
+
+        # Add direct food position relative to head (normalized -1 to 1)
+        head_x, head_y = self.head
+        food_x, food_y = food_pos
+        inputs.append((food_x - head_x) / GRID_W)   # food left/right
+        inputs.append((food_y - head_y) / GRID_H)   # food up/down
+
         return inputs
 
     def move(self):

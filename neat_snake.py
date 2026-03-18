@@ -1,5 +1,5 @@
-import pygame
-import neat
+import pygame # type: ignore
+import neat # type: ignore
 import os
 import sys
 import pickle
@@ -10,7 +10,7 @@ from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 
 # Training configuration
 MAX_STEPS     = 150   # max steps a snake can take without eating before being killed
-GENERATIONS   = 500    # how many generations to train for
+GENERATIONS   = 50000    # how many generations to train for
 FPS_TRAINING  = [120]    # speed when dev view is on (higher = faster)
 
 # Dev view colors

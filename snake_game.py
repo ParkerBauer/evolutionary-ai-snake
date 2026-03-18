@@ -80,6 +80,16 @@ class Snake:
         # Add normalized snake length
         inputs.append(len(self.body) / 100.0)
 
+        # Add whether each immediate neighbor cell is safe (1 = safe, 0 = blocked)
+        for dx, dy in [UP, DOWN, LEFT, RIGHT]:
+            nx, ny = head_x + dx, head_y + dy
+            if not (0 <= nx < GRID_W and 0 <= ny < GRID_H):
+                inputs.append(0.0)  # wall = blocked
+            elif (nx, ny) in self.body:
+                inputs.append(0.0)  # body = blocked
+            else:
+                inputs.append(1.0)  # empty = safe
+
         return inputs
 
     def move(self):

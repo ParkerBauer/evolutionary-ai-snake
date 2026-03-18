@@ -11,7 +11,7 @@ from snake_game import GRAY, LIGHT_GRAY, WHITE, GREEN, RED
 # Training configuration
 MAX_STEPS     = 150   # max steps a snake can take without eating before being killed
 GENERATIONS   = 500    # how many generations to train for
-FPS_TRAINING  = 120    # speed when dev view is on (higher = faster)
+FPS_TRAINING  = [120]    # speed when dev view is on (higher = faster)
 
 # Dev view colors
 SENSOR_WALL  = (255, 100, 100)   # red rays = wall distance
@@ -70,6 +70,7 @@ def draw_sidebar(surface, font, generation, score, fitness, alive_count, all_tim
         f"Fitness    : {fitness:.1f}",
         f"Alive      : {alive_count}",
         f"",
+        f"+/- change FPS: {FPS_TRAINING[0]}",
         f"D = toggle dev view",
         f"Q = quit",
     ]
@@ -83,7 +84,76 @@ def draw_sidebar(surface, font, generation, score, fitness, alive_count, all_tim
         text = font.render(item, True, WHITE)
         surface.blit(text, (sidebar_x, 12 + i * 22))
 
-def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):    
+def draw_graph(surface, font, history_best, history_avg):
+    panel_x = WINDOW_W
+    panel_w = 300
+    panel_h = WINDOW_H
+
+    # Background
+    pygame.draw.rect(surface, (15, 15, 15), (panel_x, 0, panel_w, panel_h))
+    pygame.draw.line(surface, LIGHT_GRAY, (panel_x, 0), (panel_x, panel_h), 2)
+
+    title = font.render("Training Progress", True, WHITE)
+    surface.blit(title, (panel_x + 10, 10))
+
+    if len(history_best) < 2:
+        msg = font.render("Waiting for data...", True, LIGHT_GRAY)
+        surface.blit(msg, (panel_x + 10, 40))
+        return
+
+    graph_x      = panel_x + 20
+    graph_y      = 60
+    graph_w      = panel_w - 40
+    graph_h      = panel_h - 180
+
+    # Draw graph border
+    pygame.draw.rect(surface, LIGHT_GRAY, (graph_x, graph_y, graph_w, graph_h), 1)
+
+    max_val = max(max(history_best), 1)
+
+    def to_screen(idx, val):
+        x = graph_x + int(idx / max(len(history_best) - 1, 1) * graph_w)
+        y = graph_y + graph_h - int(val / max_val * graph_h)
+        return (x, y)
+
+    # Draw avg fitness line (yellow)
+    if len(history_avg) >= 2:
+        avg_normalized = [max(v, 0) for v in history_avg]
+        for j in range(1, len(avg_normalized)):
+            pygame.draw.line(surface, (255, 220, 50),
+                             to_screen(j - 1, avg_normalized[j - 1]),
+                             to_screen(j, avg_normalized[j]), 1)
+
+    # Draw best fitness line (green)
+    for j in range(1, len(history_best)):
+        pygame.draw.line(surface, GREEN,
+                         to_screen(j - 1, history_best[j - 1]),
+                         to_screen(j, history_best[j]), 2)
+
+    # Labels
+    latest_best = history_best[-1]
+    latest_avg  = history_avg[-1] if history_avg else 0
+    gen         = len(history_best)
+
+    stats = [
+        f"Gen      : {gen}",
+        f"Best fit : {latest_best:.1f}",
+        f"Avg fit  : {latest_avg:.1f}",
+        f"",
+        f"— Best fitness",
+        f"— Avg fitness",
+    ]
+
+    for k, line in enumerate(stats):
+        color = WHITE
+        if line.startswith("—") and "Best" in line:
+            color = GREEN
+        elif line.startswith("—") and "Avg" in line:
+            color = (255, 220, 50)
+        text = font.render(line, True, color)
+        surface.blit(text, (graph_x, graph_y + graph_h + 15 + k * 20))
+
+def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best, history_best, history_avg):
     snakes    = []
     nets      = []
     ge        = []
@@ -100,7 +170,7 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
     generation_best = 0
 
     while True:
-        clock.tick(FPS_TRAINING)
+        clock.tick(FPS_TRAINING[0])
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -110,13 +180,20 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
                     pygame.quit(); sys.exit()
                 if event.key == pygame.K_d:
                     dev_view[0] = not dev_view[0]
+                if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
+                    FPS_TRAINING[0] = min(FPS_TRAINING[0] + 10, 300)
+                    print(f"FPS: {FPS_TRAINING[0]}")
+                if event.key == pygame.K_MINUS:
+                    FPS_TRAINING[0] = max(FPS_TRAINING[0] - 10, 5)
+                    print(f"FPS: {FPS_TRAINING[0]}")
 
         for i, snake in enumerate(snakes):
             if not snake.alive:
                 continue
 
-            # Kill loopers, no reward or penalty
-            if snake.steps_since_food > MAX_STEPS:
+            # Longer snakes get more steps since navigation is harder
+            allowed_steps = MAX_STEPS + (snake.score * 15)
+            if snake.steps_since_food > allowed_steps:
                 snake.alive = False
                 continue
 
@@ -171,15 +248,20 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best):
             hud = font.render(f"Gen: {getattr(eval_genomes, 'generation', 0)}  Alive: {len(alive)}  Best Ever: {all_time_best[0]}  This Gen: {generation_best}", True, WHITE)
             screen.blit(hud, (8, 8))
 
+        draw_graph(screen, font, history_best, history_avg)
         pygame.display.flip()
+
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
+    PANEL_W = 300
+    screen = pygame.display.set_mode((WINDOW_W + PANEL_W, WINDOW_H))    
     pygame.display.set_caption("Snake AI — NEAT Training")
     clock  = pygame.time.Clock()
     font   = pygame.font.SysFont("monospace", 16)
     all_time_best = [0]
+    history_best = []
+    history_avg  = []
 
     dev_view = [False]  # wrapped in list so eval_genomes can modify it
 
@@ -213,16 +295,17 @@ def main():
 
     # Track generation number for sidebar
     def run_generation(genomes, config):
-        run_generation.generation += 1
-        eval_genomes.generation    = run_generation.generation
-        eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best)
+        eval_genomes.generation = population.generation
+        eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best, history_best, history_avg)
 
-        # Save the best genome after every generation
         best = max(population.population.values(), key=lambda g: g.fitness if g.fitness is not None else 0)
+        fitnesses = [g.fitness for g in population.population.values() if g.fitness is not None]
+        history_best.append(best.fitness)
+        history_avg.append(sum(fitnesses) / len(fitnesses))
+
         with open("best_genome.pkl", "wb") as f:
             pickle.dump(best, f)
         print(f"  Saved best genome (fitness: {best.fitness:.1f})")
-    run_generation.generation = 0
 
     # Load existing brain if available
     checkpoint_path = "best_genome.pkl"

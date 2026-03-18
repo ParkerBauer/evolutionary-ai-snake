@@ -101,19 +101,29 @@ def draw_graph(surface, font, history_best, history_avg):
         surface.blit(msg, (panel_x + 10, 40))
         return
 
-    graph_x      = panel_x + 20
-    graph_y      = 60
-    graph_w      = panel_w - 40
-    graph_h      = panel_h - 180
+    graph_x = panel_x + 35
+    graph_y = 35
+    graph_w = panel_w - 50
+    graph_h = panel_h - 160
 
-    # Draw graph border
+    # Draw graph background and border
+    pygame.draw.rect(surface, (25, 25, 25), (graph_x, graph_y, graph_w, graph_h))
     pygame.draw.rect(surface, LIGHT_GRAY, (graph_x, graph_y, graph_w, graph_h), 1)
 
     max_val = max(max(history_best), 1)
 
+    # Y axis labels
+    for pct in [0, 0.25, 0.5, 0.75, 1.0]:
+        y = graph_y + graph_h - int(pct * graph_h)
+        val = int(pct * max_val)
+        pygame.draw.line(surface, (50, 50, 50), (graph_x, y), (graph_x + graph_w, y), 1)
+        label = font.render(str(val), True, LIGHT_GRAY)
+        surface.blit(label, (panel_x + 2, y - 8))
+
     def to_screen(idx, val):
         x = graph_x + int(idx / max(len(history_best) - 1, 1) * graph_w)
         y = graph_y + graph_h - int(val / max_val * graph_h)
+        y = max(graph_y, min(graph_y + graph_h, y))
         return (x, y)
 
     # Draw avg fitness line (yellow)
@@ -130,28 +140,25 @@ def draw_graph(surface, font, history_best, history_avg):
                          to_screen(j - 1, history_best[j - 1]),
                          to_screen(j, history_best[j]), 2)
 
-    # Labels
+    # Stats below graph
     latest_best = history_best[-1]
     latest_avg  = history_avg[-1] if history_avg else 0
-    gen         = len(history_best)
+    all_time    = max(history_best)
 
     stats = [
-        f"Gen      : {gen}",
-        f"Best fit : {latest_best:.1f}",
-        f"Avg fit  : {latest_avg:.1f}",
-        f"",
-        f"— Best fitness",
-        f"— Avg fitness",
+        (f"Gen        : {len(history_best)}",       WHITE),
+        (f"Best fit   : {latest_best:.0f}",         WHITE),
+        (f"Avg fit    : {latest_avg:.0f}",           WHITE),
+        (f"All time   : {all_time:.0f}",             WHITE),
+        (f"",                                        WHITE),
+        (f"- Best fitness",                          GREEN),
+        (f"- Avg fitness",                           (255, 220, 50)),
     ]
 
-    for k, line in enumerate(stats):
-        color = WHITE
-        if line.startswith("—") and "Best" in line:
-            color = GREEN
-        elif line.startswith("—") and "Avg" in line:
-            color = (255, 220, 50)
+    for k, (line, color) in enumerate(stats):
         text = font.render(line, True, color)
-        surface.blit(text, (graph_x, graph_y + graph_h + 15 + k * 20))
+        surface.blit(text, (panel_x + 10, graph_y + graph_h + 10 + k * 19))
+
 
 def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best, history_best, history_avg):
     snakes    = []

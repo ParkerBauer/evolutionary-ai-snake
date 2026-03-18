@@ -27,13 +27,22 @@ RIGHT = ( 1,  0)
 
 # Snake class
 class Snake:
-    def __init__(self):
-        start_x = GRID_W // 2
-        start_y = GRID_H // 2
-        self.body      = [(start_x, start_y),
-                          (start_x - 1, start_y),
-                          (start_x - 2, start_y)]
-        self.direction = RIGHT
+    def __init__(self, randomize=False):
+        if randomize:
+            start_x = random.randint(5, GRID_W - 6)
+            start_y = random.randint(5, GRID_H - 6)
+            self.direction = random.choice([UP, DOWN, LEFT, RIGHT])
+            dx, dy = self.direction
+            self.body = [(start_x, start_y),
+                         (start_x - dx, start_y - dy),
+                         (start_x - dx*2, start_y - dy*2)]
+        else:
+            start_x = GRID_W // 2
+            start_y = GRID_H // 2
+            self.body      = [(start_x, start_y),
+                              (start_x - 1, start_y),
+                              (start_x - 2, start_y)]
+            self.direction = RIGHT
         self.alive     = True
         self.score     = 0
         self.steps_since_food = 0

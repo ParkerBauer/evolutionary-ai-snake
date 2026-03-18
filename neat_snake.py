@@ -169,7 +169,7 @@ def eval_genomes(genomes, config, screen, clock, font, dev_view, all_time_best, 
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         genome.fitness = 0
-        snakes.append(Snake())
+        snakes.append(Snake(randomize=True))
         nets.append(net)
         ge.append(genome)
         foods.append(spawn_food([]))

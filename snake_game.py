@@ -77,6 +77,9 @@ class Snake:
         inputs.append((food_x - head_x) / GRID_W)   # food left/right
         inputs.append((food_y - head_y) / GRID_H)   # food up/down
 
+        # Add normalized snake length
+        inputs.append(len(self.body) / 100.0)
+
         return inputs
 
     def move(self):

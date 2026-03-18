@@ -44,10 +44,10 @@ class Snake:
             self.direction = new_dir
 
     def look_in_direction(self, direction, food_pos):
-        dist     = 0
-        pos      = list(self.head)
-        see_food = 0
-        see_body = 0
+        dist      = 0
+        pos       = list(self.head)
+        food_dist = 0  # 0 means not seen
+        body_dist = 0  # 0 means not seen
 
         while True:
             pos[0] += direction[0]
@@ -56,13 +56,13 @@ class Snake:
 
             if not (0 <= pos[0] < GRID_W and 0 <= pos[1] < GRID_H):
                 break
-            if tuple(pos) == food_pos and see_food == 0:
-                see_food = 1
-            if tuple(pos) in self.body and see_body == 0:
-                see_body = 1
+            if tuple(pos) == food_pos and food_dist == 0:
+                food_dist = 1.0 / dist  # closer food = higher value
+            if tuple(pos) in self.body and body_dist == 0:
+                body_dist = 1.0 / dist  # closer body = higher value
 
         wall_dist = 1.0 / dist
-        return [wall_dist, see_food, see_body]
+        return [wall_dist, food_dist, body_dist]
 
     def get_inputs(self, food_pos):
         directions = [UP, DOWN, LEFT, RIGHT,

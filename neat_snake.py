@@ -298,7 +298,7 @@ def main():
 
     population.add_reporter(neat.StdOutReporter(True))
     population.add_reporter(neat.StatisticsReporter())
-    population.add_reporter(neat.Checkpointer(5, filename_prefix=f"{checkpoint_dir}/neat-checkpoint-"))
+    population.add_reporter(neat.Checkpointer(50, filename_prefix=f"{checkpoint_dir}/neat-checkpoint-"))
 
     # Track generation number for sidebar
     def run_generation(genomes, config):
